@@ -1,19 +1,23 @@
-import pandas, pdb
+# Jordan Rosen-Kaplan
+# 9 December 2018
+# This program outputs a CSV of time between the original tweet and
+# the first retweet versus the overall number of retweets a tweet gets
+
+import pandas, csv
 from datetime import datetime, date, time
 
-filename = 'new_ira_retweet_times'
+IN_FILENAME = 'ira_retweet_times.csv'
 
-def main():
-	df = getData()
-	dates = mapRowToDatetime(df)
-	analyze(dates, df)
-
+# \brief: This function returns a DataFrame of a csv 
+#			associating information about the tweet's id, whether the tweet
+#			is an original or a retweet, date, and time
 def getData():
 	dtypes = {"tweetid":str, "is_original":bool, "day":str, "time":str}
 
-	path = filename + '.csv'
-	return pandas.read_csv(path, dtype=dtypes)
+	return pandas.read_csv(IN_FILENAME, dtype=dtypes)
 
+# \brief: This function associates tweets with a datetime object
+# @param 'df': type->pandas.DataFrame, loaded from getData()
 def mapRowToDatetime(df):
 	row_to_datetime = {}
 	for index, row in df.iterrows():
@@ -26,15 +30,15 @@ def mapRowToDatetime(df):
 		row_to_datetime[index] = to_save
 	return row_to_datetime
 
-
-
-def analyze(dates, df):
-	analyzeFirstRTTime(dates, df)
-	analyzeNumRetweets(dates, df)
-
+# \brief: This function writes a csv associating the time difference
+#			between a tweet and its first retweet against the number
+#			of retweets it ultimately garners
+# @param 'dates': type->map, returned from mapRowToDatetime(df)
+# @param 'df': type->pandas.DataFrame, loaded from getData()
 def analyzeFirstRTTime(dates, df):
 	with open("first_RT_to_num_retweets.csv", 'w') as file:
-		file.write('time_to_first_RT,num_retweets\n')
+		writer = csv.writer(file, delimiter=',')
+		writer.writerow('time_to_first_RT,num_retweets\n')
 
 		new_tweet = True
 		original_tweet_datetime = None
@@ -49,7 +53,7 @@ def analyzeFirstRTTime(dates, df):
 
 			if row['is_original']:
 				t = first_retweet_datetime - original_tweet_datetime
-				file.write(str(t.total_seconds()) + "," + str(num_retweets) + "\n")
+				writer.writerow(str(t.total_seconds()) + "," + str(num_retweets) + "\n")
 				original_tweet_datetime = dates[index]
 				num_retweets = 0
 				first_retweet_datetime = None
@@ -59,41 +63,12 @@ def analyzeFirstRTTime(dates, df):
 				if not first_retweet_datetime or curr_retweet_time < first_retweet_datetime:
 					first_retweet_datetime = curr_retweet_time
 		t = first_retweet_datetime - original_tweet_datetime
-		file.write(str(t.total_seconds()) + "," + str(num_retweets) + "\n")
+		writer.writerow(str(t.total_seconds()) + "," + str(num_retweets) + "\n")
 
+def main():
+	df = getData()
+	dates = mapRowToDatetime(df)
+	analyzeFirstRTTime(dates, df)
 
-def analyzeNumRetweets(dates, df):
-	with open("average_time_delta_to_num_retweets.csv", 'w') as file:
-		file.write('average_time_delta,num_retweets\n')
-		
-		num_retweets = 0
-		rt_times = []
-
-		for index, row in df.iterrows():
-
-			if index == 0:
-				original_tweet_datetime = dates[index]
-				continue
-
-			if row['is_original']:
-				if len(rt_times) == 1:
-					continue
-				avg_td = findAverageTD(rt_times)
-				file.write(avg_td + "," + str(num_retweets) + "\n")
-				num_retweets = 0
-				rt_times = []
-			else:
-				num_retweets += 1
-				rt_times.append(dates[index])
-
-def findAverageTD(rt_times):
-	all_tds = []
-	num_combos = 0
-	for i in xrange(len(rt_times)):
-		for j in xrange(i+1, len(rt_times)):
-			num_combos += 1
-			all_tds.append(abs(rt_times[i] - rt_times[j]).total_seconds())
-	average = sum(all_tds) / float(num_combos)
-	return str(average)
-
-main()
+if __name__ == '__main__':
+	main()
